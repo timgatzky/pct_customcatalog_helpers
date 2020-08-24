@@ -40,7 +40,7 @@ class BackendHelpers extends Backend
 	{
 		// find the attribute
 		$objAttribute = \PCT\CustomElements\Plugins\CustomCatalog\Core\AttributeFactory::findByCustomCatalog($objDC->field,$objDC->table);
-		if( $objAttribute === null )
+		if( $objAttribute === null || (boolean)$objAttribute->published === false )
 		{
 			return $varValue;
 		}
@@ -132,7 +132,7 @@ class BackendHelpers extends Backend
 	{
 		// find the attribute
 		$objAttribute = \PCT\CustomElements\Plugins\CustomCatalog\Core\AttributeFactory::findByCustomCatalog($objDC->field,$objDC->table);
-		if( $objAttribute === null )
+		if( $objAttribute === null || (boolean)$objAttribute->published === false )
 		{
 			return $varValue;
 		}
