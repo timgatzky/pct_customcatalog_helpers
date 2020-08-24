@@ -45,6 +45,13 @@ class BackendHelpers extends Backend
 			return $varValue;
 		}
 
+		// multiple flag
+		$blnMultiple = (boolean)$GLOBALS['TL_DCA'][$objDC->table]['fields'][$objDC->field]['eval']['multiple'];
+		// @var object
+		$objModelHelper = new ContaoModel();
+		$objModelHelper->setTable( $objDC->table );
+		$objRegistry = Registry::getInstance();
+
 		$varValue = StringUtil::deserialize($varValue);
 		if( \is_array($varValue) === false )
 		{
@@ -52,12 +59,38 @@ class BackendHelpers extends Backend
 		}
 		$varValue = \array_filter($varValue);
 
-		// multiple flag
-		$blnMultiple = (boolean)$GLOBALS['TL_DCA'][$objDC->table]['fields'][$objDC->field]['eval']['multiple'];
-		
-		$objModelHelper = new ContaoModel();
-		$objModelHelper->setTable( $objDC->table );
-		$objRegistry = Registry::getInstance();
+		// compare to the entries from load_callback
+		$arrSession = $this->Session->get('related_items');
+		$arrUnset = array();
+		if( empty($arrSession[$objDC->table][$objDC->field]) === false )
+		{
+			$arrUnset = \array_diff($arrSession[$objDC->table][$objDC->field],$varValue);
+		}
+
+		if( empty($arrUnset) === false )
+		{
+			// find selected records
+			$objModels = $objModelHelper::findMultipleByIds($arrUnset);
+			foreach($objModels as $model)
+			{
+				// register the model
+				$objRegistry->register($model);
+				
+				$values = StringUtil::deserialize( $model->{$objDC->field} );
+				if( $blnMultiple === true )
+				{
+					$i = \array_search($objDC->id, $values);
+					unset($values[$i]);
+					$model->__set($objDC->field, \array_unique($values) );
+				}
+				else
+				{
+					$model->__set($objDC->field, null);
+				}
+				// update the record
+				$model->save();
+			}
+		}
 
 		// find selected records
 		$objModels = $objModelHelper::findMultipleByIds($varValue);
@@ -84,6 +117,36 @@ class BackendHelpers extends Backend
 				$model->save();
 			}
 		}
+		
+		return $varValue;
+	}
+
+
+	/**
+	 * Store the current related entries in the session to compare against the new ones saved
+	 * @param mixed
+	 * @param object
+	 * @return mixed
+	 */
+	public function currentRelatedItems($varValue, $objDC)
+	{
+		// find the attribute
+		$objAttribute = \PCT\CustomElements\Plugins\CustomCatalog\Core\AttributeFactory::findByCustomCatalog($objDC->field,$objDC->table);
+		if( $objAttribute === null )
+		{
+			return $varValue;
+		}
+
+		$varValue = StringUtil::deserialize($varValue);
+		if( \is_array($varValue) === false )
+		{
+			$varValue = \explode(',',$varValue);
+		}
+		$varValue = \array_filter($varValue);
+
+		// set session
+		$arrSession[$objDC->table][$objDC->field] = $varValue;
+		$this->Session->set('related_items', $arrSession);
 		
 		return $varValue;
 	}
